@@ -1,65 +1,100 @@
 package com.example.learn;
 
 import android.content.Context;
-import android.util.Log;
-import com.example.learn.Movie;
+
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
-import java.io.BufferedReader;
+
+import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.List;
 
 public class JsonUtils {
-    private static final String TAG = "JsonUtils";
+    public static JsonResult loadMoviesFromJson(Context context) {
+        List<Movie> movies = new ArrayList<>();
 
-    public static List<Movie> loadMoviesFromJson(Context context) throws Exception {
-        ArrayList<Movie> movies = new ArrayList<>();
+        try {
+            InputStream is;
 
-        // Load from assets folder as per your original file structure
-        InputStream is = context.getAssets().open("movies.json");
-        BufferedReader reader = new BufferedReader(new InputStreamReader(is));
-        StringBuilder sb = new StringBuilder();
-        String line;
-        while ((line = reader.readLine()) != null) sb.append(line);
-        is.close();
-
-        JSONArray jsonArray = new JSONArray(sb.toString());
-        for (int i = 0; i < jsonArray.length(); i++) {
+            // FILE NOT FOUND
             try {
-                JSONObject movieObj = jsonArray.getJSONObject(i);
+                is = context.getAssets().open("movies.json");
+            } catch (IOException e) {
+                return new JsonResult(null, "File not found: movies.json");
+            }
 
-                // 1. Title Validation
-                String title = movieObj.optString("title", "MISSING VALUE");
+            int size = is.available();
+            byte[] buffer = new byte[size];
+            is.read(buffer);
+            is.close();
 
-                // 2. Year Validation (Strict Type Checking)
-                int year = -1;
-                if (movieObj.has("year") && !movieObj.isNull("year")) {
-                    Object value = movieObj.get("year");
-                    if (!(value instanceof Integer)) {
-                        throw new JSONException("Year must be an Integer");
-                    }
-                    year = (int) value;
-                    if (year < 0) throw new JSONException("Year is negative");
+            String json = new String(buffer, "UTF-8");
+
+            JSONArray jsonArray;
+
+            // JSON PARSING ERROR
+            try {
+                jsonArray = new JSONArray(json);
+            } catch (Exception e) {
+                return new JsonResult(null, "Invalid JSON format");
+            }
+
+            for (int i = 0; i < jsonArray.length(); i++) {
+                JSONObject object = jsonArray.optJSONObject(i);
+
+                if (object.length() == 0) continue;
+
+                // MISSING FIELDS
+                String title = object.optString("title", null);
+                String genre = object.optString("genre", null);
+                String poster = object.optString("poster", "N/A");
+
+// Handle missing or null values
+                if (title == null || title.equals("null") || title.isEmpty()) {
+                    title = "N/A";
                 }
 
-                // 3. Genre & Poster Validation
-                String genre = movieObj.optString("genre", "MISSING VALUE");
-                String poster = movieObj.optString("poster", "MISSING VALUE");
+                if (genre == null || genre.equals("null") || genre.isEmpty()) {
+                    genre = "N/A";
+                }
 
-                // Check for empty objects {}
-                if (title.equals("MISSING VALUE") && year == -1) {
-                    throw new JSONException("Empty item");
+                Integer year = null;
+
+                //INVALID FORMAT
+                if (object.has("year")) {
+                    try {
+                        String yearStr = object.getString("year");
+
+                        // Only allow whole numbers (no text, no decimals)
+                        if (yearStr.matches("\\d+")) {
+                            year = Integer.parseInt(yearStr);
+
+                            // Optional: reject negative or unrealistic values
+                            if (year < 0) {
+                                year = null;
+                            }
+                        } else {
+                            year = null; // invalid format → set null
+                        }
+
+                    } catch (Exception e) {
+                        year = null; // any error → set null
+                    }
                 }
 
                 movies.add(new Movie(title, year, genre, poster));
-
-            } catch (JSONException e) {
-                Log.e(TAG, "Skipping invalid movie at index " + i + ": " + e.getMessage());
             }
+
+        } catch (IOException e) {
+            return new JsonResult(null, "Error reading file");
         }
-        return movies;
+
+        return new JsonResult(movies, null);
+    }
+
+    public static void handleJsonException(Exception e) {
+        android.util.Log.e("JsonUtils", "Data parsing error: " + e.getMessage());
     }
 }

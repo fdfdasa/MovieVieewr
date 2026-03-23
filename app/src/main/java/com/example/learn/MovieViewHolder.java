@@ -31,7 +31,7 @@ public class MovieViewHolder extends RecyclerView.ViewHolder{
         if (movie.getYear() != null) {
             yearTextView.setText("Year: " + String.valueOf(movie.getYear()));
         } else {
-            yearTextView.setText("N/A");
+            yearTextView.setText("Year: N/A");
         }
 
         if (movie.getPosterResource() != null) {
