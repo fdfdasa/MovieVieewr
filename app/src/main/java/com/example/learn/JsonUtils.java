@@ -51,7 +51,7 @@ public class JsonUtils {
                 String genre = object.optString("genre", null);
                 String poster = object.optString("poster", "N/A");
 
-// Handle missing or null values
+                // Handle missing or null values
                 if (title == null || title.equals("null") || title.isEmpty()) {
                     title = "N/A";
                 }
